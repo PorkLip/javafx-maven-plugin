@@ -29,6 +29,8 @@
  */
 package org.openjfx;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Model;
@@ -63,6 +65,8 @@ import java.util.stream.Collectors;
 @Execute(phase = LifecyclePhase.PROCESS_RESOURCES)
 public class JavaFXRunFixMojo extends JavaFXBaseMojo {
 
+    private static final String ARCHITECTURE_AMD64 = "amd64";
+
     @Parameter(readonly = true, required = true, defaultValue = "${basedir}/pom.xml")
     String pom;
 
@@ -81,19 +85,7 @@ public class JavaFXRunFixMojo extends JavaFXBaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
-        String osName = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        String classifier = "";
-        if (osName.contains("mac")) {
-            classifier = "mac";
-        } else if (osName.contains("nux")) {
-            classifier = "linux";
-        } else if (osName.contains("windows")) {
-            classifier = "win";
-        } else {
-            throw new MojoExecutionException("Error, os.name " + osName + " not supported");
-        }
-
-        String PLATFORM = javafxPlatform != null ? javafxPlatform : classifier;
+        String PLATFORM = javafxPlatform != null ? javafxPlatform : this.getClassifier();
 
         final InvocationRequest invocationRequest = new DefaultInvocationRequest();
         invocationRequest.setProfiles(project.getActiveProfiles().stream()
@@ -152,6 +144,36 @@ public class JavaFXRunFixMojo extends JavaFXBaseMojo {
                 modifiedPomFile.delete();
             }
         }
+    }
+
+    /**
+     * Get the classifier from OS and Architecture
+     *
+     * @return A string
+     * @throws MojoExecutionException if the OS isn't supported
+     */
+    private String getClassifier() throws MojoExecutionException {
+        if (SystemUtils.IS_OS_MAC) {
+            return "mac" + this.getArchitecture();
+        } else if (SystemUtils.IS_OS_LINUX) {
+            return "linux" + this.getArchitecture();
+        } else if (SystemUtils.IS_OS_WINDOWS) {
+            return "win" + this.getArchitecture();
+        } else {
+            throw new MojoExecutionException("Error, " + SystemUtils.OS_NAME + " not supported");
+        }
+    }
+
+    /**
+     * Get the architecture part of the classifier, {@link #ARCHITECTURE_AMD64} is the default build
+     *
+     * @return A string
+     */
+    private String getArchitecture() {
+        if (StringUtils.isBlank(SystemUtils.OS_ARCH) || ARCHITECTURE_AMD64.equals(SystemUtils.OS_ARCH)) {
+            return "";
+        }
+        return "-" + SystemUtils.OS_ARCH;
     }
 }
 
